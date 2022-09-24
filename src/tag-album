@@ -1,0 +1,96 @@
+#!/bin/zsh
+#
+# tag a set of mp3 files that share the same artist and album
+#
+# dependencies:
+#     echo
+#     mid3v2
+#     sed
+#     zsh
+#     zsh/mapfile
+#
+#-------------------------------------------------------------------------------------------------------
+#
+#
+
+function usage() {
+    echo "Usage:"
+    echo ""
+    echo "\ttag-album artist album recording_date"
+    echo ""
+    echo "Execute this script in the same directory as an album_titles.txt file"
+    echo ""
+    echo "album_titles.txt should be an ASCII or UTF-8 text file, where each line"
+    echo "contains the filename followed by a comma and then the track title."
+    echo ""
+    echo "You can include additional spaces around the comma for better"
+    echo "readability; the spaces won't be included in the tags."
+    echo ""
+    echo "path/name_of_file   ,   track_title"
+    echo "Lines starting with '#' (comments) are ignored."
+    echo ""
+    }
+
+NUM_ARGS=$#
+
+if [[ ! $NUM_ARGS == 3 ]];
+then
+    echo -e "\n>>> ERROR >>> Incorrect arguments!\n"
+    usage
+    exit 1
+fi
+
+ARTIST=$1
+ALBUM=$2
+RECORDING_YEAR=$3
+
+zmodload zsh/mapfile
+TITLES_FILE=./album_titles.txt
+
+if [[ ! -f "$TITLES_FILE" ]];
+then
+    echo -e "\n>>> ERROR >>> $TITLES_FILE not found!\n"
+    usage
+    exit 1
+fi
+
+FLINES=( "${(f)mapfile[$TITLES_FILE]}" )
+LIST="${mapfile[$TITLES_FILE]}"
+
+# get total number of files
+integer t=0
+for line in $FLINES; do
+    if [[ $line == \#* ]];
+    then
+        continue
+    fi
+    (( t++ ))
+done
+
+TOTAL_COUNT=$t
+echo "TOTAL_COUNT=$TOTAL_COUNT"
+
+t=0
+for line in $FLINES; do
+    if [[ $line == \#* ]];
+    then
+        continue
+    fi
+    (( t++ ))
+    fields=(${(@s:,:)line})
+
+    filename=${fields[1]}
+    filename=`echo $filename | /bin/sed 's/ *$//g' | /bin/sed 's/^ *//'`
+    
+    title=${fields[2]}
+    title=`echo $title | /bin/sed 's/ *$//g' | /bin/sed 's/^ *//'`
+    
+    /usr/bin/mid3v2 \
+        -t "$title" \
+        -T \"$t/${TOTAL_COUNT}\" \
+        -a \"$ARTIST\" \
+        -A \"$ALBUM\" \
+        -y ${RECORDING_YEAR} \
+        "$filename"
+done
+
