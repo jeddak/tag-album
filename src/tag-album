@@ -3,15 +3,17 @@
 # tag a set of mp3 files that share the same artist and album
 #
 # dependencies:
-#     echo
+#     awk
+#     flac
 #     mid3v2
 #     sed
 #     zsh
 #     zsh/mapfile
 #
 #-------------------------------------------------------------------------------------------------------
-#
-#
+# mid3v2: https://github.com/dhamaniasad/mutagen/blob/master/tools/mid3v2
+# Vorbis tags used by FLAC: https://exiftool.org/TagNames/Vorbis.html
+#-------------------------------------------------------------------------------------------------------
 
 function usage() {
     echo "Usage:"
@@ -21,9 +23,9 @@ function usage() {
     echo "Execute this script in the same directory as an album_titles.txt file"
     echo ""
     echo "album_titles.txt should be an ASCII or UTF-8 text file, where each line"
-    echo "contains the filename followed by a comma and then the track title."
+    echo "contains the filename followed by a pipe ('|') and then the track title."
     echo ""
-    echo "You can include additional spaces around the comma for better"
+    echo "You can include additional spaces around the pipe for better"
     echo "readability; the spaces won't be included in the tags."
     echo ""
     echo "path/name_of_file   ,   track_title"
@@ -77,20 +79,33 @@ for line in $FLINES; do
         continue
     fi
     (( t++ ))
-    fields=(${(@s:,:)line})
+    fields=(${(@s:|:)line})
 
-    filename=${fields[1]}
-    filename=`echo $filename | /bin/sed 's/ *$//g' | /bin/sed 's/^ *//'`
+    filename=`echo ${fields[1]} | awk '{ sub(/^[ \t]+/, ""); print }'`
     
-    title=${fields[2]}
-    title=`echo $title | /bin/sed 's/ *$//g' | /bin/sed 's/^ *//'`
+    title=`echo ${fields[2]} | awk '{ sub(/^[ \t]+/, ""); print }'`
+
+    echo "title=$title"
     
-    /usr/bin/mid3v2 \
-        -t "$title" \
-        -T \"$t/${TOTAL_COUNT}\" \
-        -a \"$ARTIST\" \
-        -A \"$ALBUM\" \
-        -y ${RECORDING_YEAR} \
-        "$filename"
+    if [[ $filename == *.mp3 ||  $filename == *.m4a ]];
+    then
+        /usr/bin/mid3v2 \
+            -t "${title}" \
+            -T \"$t/${TOTAL_COUNT}\" \
+            -a \"${ARTIST}\" \
+            -A \"${ALBUM}\" \
+            -y ${RECORDING_YEAR} \
+            "${filename}"
+    else
+        if [[ $filename == *.flac ]];
+        then
+            /usr/bin/flac -f \
+                          --tag="TITLE=${title}" \
+                          --tag="TRACKNUMBER=${t}" \
+                          --tag="ARTIST=${ARTIST}" \
+                          --tag="ALBUM=${ALBUM}" \
+                          --tag="DATE=${RECORDING_YEAR}" \
+                          "${filename}"
+        fi
+    fi
 done
-
