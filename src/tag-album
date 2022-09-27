@@ -28,7 +28,7 @@ function usage() {
     echo "You can include additional spaces around the pipe for better"
     echo "readability; the spaces won't be included in the tags."
     echo ""
-    echo "path/name_of_file   ,   track_title"
+    echo "path/name_of_file   |   track_title"
     echo "Lines starting with '#' (comments) are ignored."
     echo ""
     }
@@ -84,9 +84,7 @@ for line in $FLINES; do
     filename=`echo ${fields[1]} | awk '{ sub(/^[ \t]+/, ""); print }'`
     
     title=`echo ${fields[2]} | awk '{ sub(/^[ \t]+/, ""); print }'`
-
-    echo "title=$title"
-    
+      
     if [[ $filename == *.mp3 ||  $filename == *.m4a ]];
     then
         /usr/bin/mid3v2 \
@@ -106,6 +104,8 @@ for line in $FLINES; do
                           --tag="ALBUM=${ALBUM}" \
                           --tag="DATE=${RECORDING_YEAR}" \
                           "${filename}"
+        else
+           echo "don't know what to do with $filename"
         fi
     fi
 done
